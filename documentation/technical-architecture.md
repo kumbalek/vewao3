@@ -34,8 +34,32 @@
 | Cache/Sessions | Redis | Session tokens, daily challenge seed caching, used launch token registry |
 | ORM | Drizzle ORM | Type-safe, schema-first, excellent with TypeScript |
 | Auth | JWT (RS256 auth tokens, ES256 launch tokens) + refresh token rotation | Asymmetric signing; public key embedded in client for launch token verification |
-| Hosting | Fly.io (or Railway) | Simple container deployment; free tier for development |
-| File Storage | Cloudflare R2 | Static assets (game sprites, audio); CDN delivery |
+| Hosting | Hetzner VPS + Docker Compose | Self-hosted; ~€4–6/mo for CX21; full control; no vendor lock-in |
+| Cloudflare | R2 (storage) + Proxy + DNS | Static asset CDN; reverse proxy hiding origin IP; DDoS protection; SSL termination; domain management |
+
+### Infrastructure & Deployment
+
+**Hetzner VPS**
+- Recommended tier: **CX21** (2 vCPU, 4 GB RAM) — sufficient for MVP and early traffic. Upgrade path to CX31 (4 vCPU, 8 GB) if load warrants.
+- All services run via **Docker Compose**: `app` (Node.js/Fastify), `db` (PostgreSQL 16), `cache` (Redis 7), `nginx` (reverse proxy)
+- nginx listens on port 80 on the internal Docker network, forwards to `app`. Only port 80 is exposed to public — Cloudflare handles 443.
+- PostgreSQL data persisted via a named Docker volume (survives container restarts and rebuilds)
+
+**Cloudflare**
+- **DNS**: Domain A record points to Hetzner IP with proxy enabled (orange cloud) — origin IP is never exposed
+- **Proxy / DDoS**: All traffic passes through Cloudflare edge before reaching Hetzner; free WAF rules included
+- **SSL**: "Full" mode — Cloudflare terminates HTTPS at the edge, forwards HTTP to nginx. Origin uses a **Cloudflare Origin CA cert** (free, 15-year validity, no certbot/renewal needed)
+- **R2**: Static assets (sprites, audio) served from an R2 bucket via Cloudflare CDN — no bandwidth cost between R2 and Cloudflare edge
+
+**Deployment workflow**
+```bash
+ssh user@hetzner-vps
+git pull
+docker compose up -d --build
+```
+Secrets (DB credentials, JWT private keys, Cloudflare tokens) stored in a `.env` file on the server only — never committed to the repo.
+
+---
 
 ### Offline/Guest Mode
 - Full game logic runs client-side. **The run itself requires no server calls.**
@@ -218,6 +242,10 @@ This enables:
 
 ```
 reactor-core/
+├── Dockerfile                         # Node.js app image (production)
+├── docker-compose.yml                 # Orchestrates app, db, redis, nginx
+├── nginx/
+│   └── nginx.conf                     # Reverse proxy: port 80 → app:3000
 ├── src/
 │   ├── game/
 │   │   ├── engine/
