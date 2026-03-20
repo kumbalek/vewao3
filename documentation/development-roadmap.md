@@ -114,7 +114,10 @@ Configurable combat sandbox: choose ship, configure deck, configure board, fight
 - [ ] **Ship persistence on safe return** (serialize deck + board state across runs)
 - [ ] **Waypoint system** (save last act boundary; offer fresh-start vs. waypoint re-entry)
 - [ ] **Faction Alert** (+20% enemy HP on waypoint re-entry; reduced by Deep Space Relay module)
-- [ ] **Drive Fuel system** (server-side counter, 5 cap for free players, 1 spent per launch, regenerates 1/2h)
+- [ ] **Drive Fuel system** — server-side counter; 5 cap for free accounts; regeneration computed on-read (no cron)
+- [ ] **Launch token** — HMAC-signed token issued on fuel spend; validated on run complete; nonce stored in Redis
+- [ ] **Guest trial** — 3 local launches in `localStorage.guestFuel`; registration prompt on depletion
+- [ ] **Pending sync queue** — `localStorage.pendingSync` for dock results when server unreachable; retry on next load
 - [ ] Scrap economy (earn, spend, balance)
 - [ ] Act 1 and Act 2 fully functional with 2 boss encounters
 - [ ] Act 1 enemy pool: Rim Pirates, Scavengers, Border Militia
@@ -143,7 +146,8 @@ A full roguelike run. Player can die (losing ship) or return safely (keeping shi
 - [ ] Unlock system (ships, card pool expansion, module pool expansion)
 - [ ] Ascension system (levels 1–5 implemented)
 - [ ] Run scoring and personal bests
-- [ ] **Full game purchase flow** (unlocks unlimited Drive Fuel; no gameplay advantage beyond playtime)
+- [ ] **Full game purchase flow** — payment provider webhook → `isPurchased = true` in DB; fuel check bypassed server-side
+- [ ] **`/api/fuel` routes** — `POST /spend`, `GET /status`, `POST ../run/complete`, `POST ../purchase/verify`
 
 ### End of Phase 4 Demo
 A complete game loop. Station grows. Ships unlock. Cards pool expands. Drive Fuel purchase flow is live. Send to 25 external playtesters. This is the "Early Access candidate" build.
@@ -234,7 +238,9 @@ A complete game loop. Station grows. Ships unlock. Cards pool expands. Drive Fue
 | Scope creep on content (too many cards before core loop is fun) | High | Medium | Phase 1–2 content minimum; resist adding until loop works |
 | Audio asset production blocking launch | Medium | Low | Use free/licensed placeholder audio until Phase 5 |
 | Save corruption on browser localStorage | Low | High | Schema versioning; migration system for save format changes |
-| Drive Fuel feels too restrictive — free players hit the wall at a bad moment | Medium | High | 5 fuel is ~2–3 solid runs; tune in playtest; err generous |
-| Drive Fuel feels too generous — no incentive to purchase | Low | Medium | Track conversion rate; can tighten cap or add cosmetic bundle without changing cap |
-| Players resent the fuel system as "pay to play" | Medium | Medium | Clear messaging: buying removes cap only, all content free; no P2W |
+| Drive Fuel feels too restrictive — free players hit the wall at a bad moment | Medium | High | 5 fuel is ~2–3 solid runs; tune in playtest; err generous; guest trial + registration prompt softens the wall |
+| Drive Fuel feels too generous — no incentive to purchase | Low | Medium | Track conversion rate; can tighten cap or add cosmetic bundle without changing gameplay cap |
+| Players resent the fuel system as "pay to play" | Medium | Medium | Clear messaging: buying removes cap only, all content free; no P2W; guest trial delays the ask |
+| Launch token abuse — player captures and replays token | Low | Low | Nonce is single-use in Redis; 48h expiry; not worth attacking (run state isn't protected anyway) |
+| Server outage blocks all play | Low | High | Pending sync queue; consider short "offline grace" window for trusted accounts (future) |
 | Waypoint re-entry Faction Alert confuses new players | Low | Medium | Fresh start is always the default; waypoint is opt-in with clear UI tooltip |

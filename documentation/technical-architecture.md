@@ -30,17 +30,18 @@
 | Layer | Technology | Reason |
 |-------|-----------|--------|
 | Runtime | Node.js 20 + Fastify | Lightweight HTTP; fast startup; TypeScript-native |
-| Database | PostgreSQL | User accounts, persistent saves, leaderboards |
-| Cache/Sessions | Redis | Session tokens, daily challenge seed caching |
+| Database | PostgreSQL | User accounts, persistent saves, fuel state, leaderboards |
+| Cache/Sessions | Redis | Session tokens, daily challenge seed caching, used launch token registry |
 | ORM | Drizzle ORM | Type-safe, schema-first, excellent with TypeScript |
-| Auth | JWT + refresh token rotation | Stateless auth; works for browser + future mobile |
+| Auth | JWT (RS256 auth tokens, ES256 launch tokens) + refresh token rotation | Asymmetric signing; public key embedded in client for launch token verification |
 | Hosting | Fly.io (or Railway) | Simple container deployment; free tier for development |
 | File Storage | Cloudflare R2 | Static assets (game sprites, audio); CDN delivery |
 
 ### Offline/Guest Mode
-- Full game logic runs client-side; no server required to play
+- Full game logic runs client-side. **The run itself requires no server calls.**
 - GameState serialized to `localStorage` — persists across browser sessions
-- Guest mode: all progression saved locally. Account creation migrates guest save to cloud.
+- Guest mode: 3 trial launches stored locally (unprotected — guest cheating has no consequence since they're not monetized). After 3 launches, guests are prompted to register.
+- Account creation migrates guest save to cloud. Fuel transitions from local trial to server-controlled.
 
 ---
 
@@ -204,7 +205,7 @@ class SeededRandom {
 }
 ```
 
-Run seed = integer derived from timestamp at run start. Displayed to player. Same seed = deterministic run.
+Run seed = server-generated integer, embedded in the signed launch token. Displayed to player after launch. Same seed = deterministic run. Server-generation serves dual purpose: determinism for sharing/daily challenge, and making the seed a functional dependency of the launch token (no valid token → no seed → no run).
 
 This enables:
 - Replay from seed + input log
@@ -268,6 +269,9 @@ reactor-core/
 │   ├── routes/
 │   │   ├── auth.ts
 │   │   ├── saves.ts
+│   │   ├── fuel.ts                    # /fuel/spend, /fuel/status
+│   │   ├── runs.ts                    # /run/complete (launch token validation)
+│   │   ├── purchase.ts                # /purchase/verify (payment callback)
 │   │   └── leaderboard.ts
 │   ├── db/
 │   │   ├── schema.ts                  # Drizzle schema
@@ -277,6 +281,179 @@ reactor-core/
 │   └── assets/                        # Static assets
 └── docs/                              # This documentation folder
 ```
+
+---
+
+## Drive Fuel Security
+
+### Design Intent
+
+Fuel is the only thing that needs to be tamper-resistant — it's the monetization boundary. Everything else (run state, scrap, deck contents) can be freely edited by the player; there's no PVP, so cheating hurts only the cheater and isn't worth defending against.
+
+### Online-at-Launch, Offline-During-Run
+
+The run itself runs 100% client-side with no server calls. Only two moments require connectivity:
+
+1. **Mission launch** — client spends 1 fuel (server validates and issues a signed launch token)
+2. **Dock / death** — client syncs run result back (server validates the token and updates meta state)
+
+This preserves the offline-play benefit while keeping the monetization hook server-controlled.
+
+### Launch Token Flow
+
+```
+Client                              Server
+  |                                    |
+  | POST /api/fuel/spend               |
+  | { authJwt }                        |
+  | ---------------------------------> |
+  |                                    | validate JWT
+  |                                    | check fuelCount > 0 (or isPurchased)
+  |                                    | deduct 1 fuel
+  |                                    | compute nextRegenAt
+  |                                    | generate nonce, sign token
+  | { launchToken, fuelRemaining }     |
+  | <--------------------------------- |
+  |                                    |
+  [RUN PROCEEDS ENTIRELY OFFLINE]      |
+  |                                    |
+  | POST /api/run/complete             |
+  | { launchToken, runResult }         |
+  | ---------------------------------> |
+  |                                    | verify HMAC signature
+  |                                    | check token not expired (48h window)
+  |                                    | check nonce not already used (Redis)
+  |                                    | update meta state (scrap, unlocks, etc.)
+  |                                    | mark nonce used
+  | { updatedMetaState }               |
+  | <--------------------------------- |
+```
+
+**Launch token payload** (ES256 / ECDSA signed — asymmetric):
+```typescript
+type LaunchToken = {
+  userId: string
+  runSeed: number       // server-generated — client uses this as the PRNG seed
+  issuedAt: number      // unix timestamp
+  expiresAt: number     // issuedAt + 4 hours (matches access token window)
+  nonce: string         // UUID v4 — single-use, stored in Redis
+}
+```
+
+**Why asymmetric (ES256) and not HMAC-SHA256**: A player can mock the `/api/fuel/spend` endpoint (via a local proxy or browser extension) to return a fake 200 response. If the client just stores whatever token it receives, a mocked endpoint grants free unlimited launches. With HMAC, the client can't verify the token is genuine — only the server can. With ES256, the **public key is embedded in the client bundle at build time**, and the client *verifies the signature before launching*. A mocked response cannot produce a valid ES256 signature without the private key, which never leaves the server.
+
+**Why the run seed is server-issued**: The seed is embedded in the signed launch token. Without a genuine launch token, the client has no seed and cannot initialize a run. This means the token is not just an authorization check — it is a functional dependency of the run itself.
+
+```typescript
+// Client-side, before launching:
+import { jwtVerify, importSPKI } from 'jose'
+
+const PUBLIC_KEY = await importSPKI(EMBEDDED_PUBLIC_KEY_PEM, 'ES256')
+
+async function verifyAndExtractLaunchToken(token: string): Promise<LaunchToken | null> {
+  try {
+    const { payload } = await jwtVerify(token, PUBLIC_KEY)
+    return payload as LaunchToken   // includes runSeed
+  } catch {
+    return null   // forged, expired, or tampered — block launch
+  }
+}
+```
+
+### Token Rotation & Content Gating
+
+All server data requests — meta state, progression, unlocks — require a valid **access token**. Access tokens are short-lived and rotate regularly. This gates ongoing access to progression data without requiring mid-run server calls.
+
+```
+Token lifetimes:
+  Access token:   4 hours   — required for all API requests
+  Refresh token:  30 days   — rotates on every use (refresh token rotation)
+  Launch token:   4 hours   — embedded seed; single-use nonce
+```
+
+**How rotation closes the residual abuse window:**
+
+Without token rotation, a sophisticated attacker could capture one real launch token, never sync results (keeping the nonce alive in Redis), and replay the same token for 48h. With 4h access tokens:
+
+1. Attacker's access token expires after 4 hours
+2. They use their refresh token to get a new access token — real server call, succeeds (auth is separate from fuel)
+3. To start a new run, they need a new launch token with a new server-issued seed — requires `/api/fuel/spend`, which checks fuel → **blocked**
+4. They can finish their current run (seed already in hand), but cannot start the next one
+
+**Maximum abuse collapses from "one token per 48h of unlimited play" to "one run."**
+
+Additionally, without a valid access token, **progression data is inaccessible on session load**. An attacker playing with an invalidated session sees base-state defaults: no station upgrades, starter ships only, base card pool. The game degrades noticeably without progression, creating a compounding soft deterrent.
+
+```
+Session load sequence (account):
+  1. App loads → check localStorage for access token
+  2. If expired: use refresh token → GET /api/auth/refresh → new access token
+  3. If refresh token invalid/expired: redirect to login
+  4. Fetch meta state with valid access token → GET /api/meta
+  5. Station screen populates with real progression
+  6. "Launch" → POST /api/fuel/spend (with access token) → signed launch token (with seed)
+  7. Client verifies ES256 signature → run initializes with server seed
+  8. Run proceeds fully offline
+  9. Dock/death → POST /api/run/complete → meta state synced
+```
+
+### What This Protects
+
+| Attack | Protected? | How |
+|--------|-----------|-----|
+| Edit localStorage to add fuel | Yes | Fuel never lives in localStorage for accounts |
+| Mock the fuel endpoint | Yes | Client verifies ES256 signature; forged tokens fail. No valid token = no run seed = no run. |
+| Replay an old launch token | Yes | Nonce is single-use (Redis); token expires in 4h |
+| Extend a session indefinitely | Partial | Access tokens rotate every 4h; new run requires new launch token via real `/api/fuel/spend` |
+| Play with stale progression | Partial | Meta state requires valid access token; expired session sees base defaults |
+| Edit run state (scrap, cards, etc.) | No (intentional) | No PVP; run state editing hurts only the player |
+| Claim a run result without having launched | Yes | Server validates launch token signature + nonce |
+
+### Residual Attack Surface
+
+A determined attacker can maintain a valid refresh token indefinitely (they log in for real), get new access tokens every 4h via real server calls, and use one real launch token per 4h to get one free run per window. **Maximum abuse: one free run every 4 hours**, which requires active maintenance of the proxy setup and nets the attacker perhaps 5–6 extra runs per day.
+
+This is an acceptable ceiling for an indie game. The effort required (persistent proxy, token management, 4h re-authentication cycle) is disproportionate to the value gained, and these players represent near-zero conversion probability.
+
+### Fuel Regeneration
+
+Fuel is computed on-read — no background cron needed. The DB stores `fuelLastDepleted` and `fuelCount`. On each `/api/fuel/spend` or any read, the server computes:
+
+```typescript
+const hoursSinceDepleted = (now - fuelLastDepleted) / 3600_000
+const regenned = Math.floor(hoursSinceDepleted / REGEN_INTERVAL_HOURS)  // 2h per fuel
+const currentFuel = Math.min(FUEL_CAP, fuelCount + regenned)
+```
+
+This is stateless regeneration — no scheduled jobs, no drift.
+
+### Guest Flow
+
+Guests get 3 trial launches stored in `localStorage.guestFuel`. These are unprotected — a guest who edits localStorage to give themselves more fuel is a guest who will never pay anyway, so the loss is zero. When the trial runs out, the prompt is:
+
+> *"Create a free account to keep playing. Your progress saves to the cloud and you start with 5 fuel."*
+
+This converts the trial wall into a registration prompt, not a payment wall. The payment ask comes later, once the player is engaged.
+
+### Failure Modes
+
+| Scenario | Behavior |
+|----------|----------|
+| Server unreachable at launch | Show error: "Can't reach the server. Check your connection." No launch. |
+| Server unreachable at dock | Store `{ launchToken, runResult }` in `localStorage.pendingSync`. Retry on next app load. Cap pending syncs at 2 to prevent abuse. |
+| Player closes tab mid-run | `runState` in localStorage resumes on next load. Launch token still valid (48h window). |
+| Token expires before player docks | 48h window is generous. If expired, run result is accepted but scored as guest (no meta-state update). Player is notified. |
+
+### New Backend Routes
+
+| Route | Auth | Purpose |
+|-------|------|---------|
+| `POST /api/auth/refresh` | Refresh token | Rotate access token; refresh token rotates on every use |
+| `GET /api/meta` | Access token | Load meta state (station, unlocks, progression) |
+| `POST /api/fuel/spend` | Access token | Validate fuel, deduct 1, generate run seed, issue signed ES256 launch token |
+| `GET /api/fuel/status` | Access token | Current fuel count + next regen time (for UI display) |
+| `POST /api/run/complete` | Access token | Validate launch token signature + nonce, sync run result to meta state |
+| `POST /api/purchase/verify` | Access token | Set `isPurchased = true` after payment provider callback |
 
 ---
 
@@ -325,6 +502,10 @@ type MetaState = {
   personalBests: Record<ShipId, number>
   totalRuns: number
   totalDeaths: number
+  // Fuel — authoritative on server for accounts; local trial count for guests
+  fuelCount: number           // server-controlled for accounts
+  fuelLastDepleted: number    // unix timestamp; used to compute regen on read
+  isPurchased: boolean        // true → fuel check skipped entirely
 }
 ```
 

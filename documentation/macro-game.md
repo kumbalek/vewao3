@@ -126,19 +126,28 @@ Mid-act retreating has a cost: if you bail before clearing an act boundary, your
 
 ## Drive Fuel
 
-Each mission launch costs **1 Drive Fuel** — representing the ship's ability to make a long-range jump out to the Rim and back. Fuel regenerates over time and is stored server-side.
+Each mission launch costs **1 Drive Fuel** — representing the ship's ability to make a long-range jump out to the Rim. Fuel is the only server-side-controlled value; the run itself is fully local.
 
-| | Free Player | Full Game |
-|--|------------|-----------|
-| Max Fuel | 5 | Unlimited |
-| Regeneration | 1 per 2 hours | — |
-| Refill time | ~10 hours | — |
+| | Guest | Free Account | Full Game |
+|--|-------|-------------|-----------|
+| Max Fuel | 3 (trial) | 5 | Unlimited |
+| Regeneration | — | 1 per 2 hours | — |
+| Notes | Local only; runs out, prompts registration | Server-controlled | `isPurchased` flag; no cap |
 
-**Full game purchase** removes the cap entirely. No fuel limits, no waiting. This is the only thing the purchase unlocks — it is not pay-to-win. Free players have full access to all content; they simply play fewer sessions per day.
+**How it works in practice**:
+- Press "Launch" → server validates fuel and issues a signed launch token (requires internet)
+- The run itself runs fully offline; no server calls until you dock or die
+- On dock/death → client sends the token back; server syncs your meta state
 
-**Why this structure works as a depth incentive**: Free players get 5 launches per day. Spending all 5 on quick Act 1 clears is obviously worse than 2 well-executed deep runs. The system nudges players toward depth without mandating it. A player who genuinely wants to grind Act 1 can — they'll just have less fuel to spend.
+**Full game purchase** removes the cap entirely. No fuel limits, no waiting. This is the only thing it unlocks — all content is available to free players. It is not pay-to-win.
+
+**Guest players** get 3 unmetered trial runs. When those run out, the prompt is to create a free account (not to pay). The payment ask comes later, once the player is invested.
+
+**Why this nudges toward depth**: With 5 launches per day, spending all 5 on quick Act 1 clears is obviously less valuable than 2 deep runs. The system creates the incentive without blocking access to anything.
 
 **Fuel is not lost on death.** Only the ship and loot are lost. Dying is already punishing enough.
+
+*Security and technical details: see `technical-architecture.md` — Drive Fuel Security.*
 
 ---
 
