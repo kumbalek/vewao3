@@ -26,6 +26,10 @@
 - [x] Progression & economy spec (`progression-and-economy.md`)
 - [x] Technical architecture spec (`technical-architecture.md`)
 - [x] Game balance spec (`game-balance.md`)
+- [x] Tone revision: Firefly/Foundation hybrid — frontier Western + galactic decline
+- [x] Return mechanic redesign: ship persists on safe return, Faction Alert on waypoint re-entry
+- [x] Faction doc pass: The Solean Empire, The Free Reach, faction pool by act
+- [x] Drive Fuel monetization design: free-to-play session limits, buy-once for unlimited
 - [ ] Repo setup (Vite + React + TypeScript + PixiJS)
 - [ ] CI/CD pipeline (GitHub Actions: typecheck, test, deploy preview)
 - [ ] Design system (color tokens, typography, component library skeleton)
@@ -92,7 +96,7 @@ Configurable combat sandbox: choose ship, configure deck, configure board, fight
 ## Phase 3: Mission Map & Roguelike Loop
 *Duration: 4–5 weeks*
 
-**Goal**: A full roguelike run is playable from start to death. Mission map, node traversal, shops, events.
+**Goal**: A full roguelike run is playable from start to death or return. Mission map, node traversal, shops, events. Ship persists on safe return.
 
 ### Must Have
 - [ ] Mission map generator (seeded node graph, 3 acts)
@@ -101,39 +105,48 @@ Configurable combat sandbox: choose ship, configure deck, configure board, fight
 - [ ] Shipyard screen (rearrange grid, install modules, upgrade)
 - [ ] Shop screen (buy cards, modules, remove cards)
 - [ ] Rest node (Repair or Calibrate choice)
-- [ ] Event system — at least 8 standalone events implemented
+- [ ] Event system — at least 8 standalone events implemented (including BORDER DISPUTE, ANOMALOUS TRANSMISSION)
 - [ ] Card rewards tied to combat victories
 - [ ] Module rewards tied to Elite victories
 - [ ] Run persistence (serialized GameState to localStorage)
 - [ ] Run resume (reload page mid-run → continue where left off)
 - [ ] Death screen (Mind-Save narrative, run summary)
+- [ ] **Ship persistence on safe return** (serialize deck + board state across runs)
+- [ ] **Waypoint system** (save last act boundary; offer fresh-start vs. waypoint re-entry)
+- [ ] **Faction Alert** (+20% enemy HP on waypoint re-entry; reduced by Deep Space Relay module)
+- [ ] **Drive Fuel system** (server-side counter, 5 cap for free players, 1 spent per launch, regenerates 1/2h)
 - [ ] Scrap economy (earn, spend, balance)
 - [ ] Act 1 and Act 2 fully functional with 2 boss encounters
+- [ ] Act 1 enemy pool: Rim Pirates, Scavengers, Border Militia
+- [ ] Act 2 enemy pool: Imperial Border Guard, Free Reach Forces
 
 ### End of Phase 3 Demo
-A full roguelike run. Player can die or return. Loop is complete. Send to 10 external playtesters. Gather feedback.
+A full roguelike run. Player can die (losing ship) or return safely (keeping ship). Faction Alert, waypoint system, and Drive Fuel are live. Loop is complete. Send to 10 external playtesters. Gather feedback.
 
 ---
 
 ## Phase 4: The Station & Meta-Progression
 *Duration: 3–4 weeks*
 
-**Goal**: The Anchorage is built. Meta-progression gives players reasons to keep playing across runs.
+**Goal**: The Stead is built. Meta-progression gives players reasons to keep playing across runs.
 
 ### Must Have
-- [ ] Station screen (top-down Anchorage layout)
+- [ ] Station screen (top-down Stead layout)
 - [ ] Core rooms (Command Deck, Hangar Bay, Mind-Save Pod, Reactor Core)
 - [ ] At least 6 buildable station modules implemented
+- [ ] **Diplomatic Contacts module** (faction shop access, faction-specific discounts)
+- [ ] **Deep Space Relay module** (deeper waypoint depth, reduced Faction Alert penalty)
 - [ ] Meta currency system (Scrap Metal, Data Cores, Void Crystals)
 - [ ] Station power budget (Reactor Core limits active modules)
-- [ ] Pre-mission setup (select ship, choose active station modules)
+- [ ] Pre-mission setup (select ship/waypoint, choose active station modules)
 - [ ] All 3 starter ships with unique grids and passives
 - [ ] Unlock system (ships, card pool expansion, module pool expansion)
 - [ ] Ascension system (levels 1–5 implemented)
 - [ ] Run scoring and personal bests
+- [ ] **Full game purchase flow** (unlocks unlimited Drive Fuel; no gameplay advantage beyond playtime)
 
 ### End of Phase 4 Demo
-A complete game loop. Station grows. Ships unlock. Cards pool expands. Send to 25 external playtesters. This is the "Early Access candidate" build.
+A complete game loop. Station grows. Ships unlock. Cards pool expands. Drive Fuel purchase flow is live. Send to 25 external playtesters. This is the "Early Access candidate" build.
 
 ---
 
@@ -143,12 +156,14 @@ A complete game loop. Station grows. Ships unlock. Cards pool expands. Send to 2
 **Goal**: Content breadth and production quality reach release standards.
 
 ### Must Have
-- [ ] Act 3 fully implemented (The Static Core biome, final boss The Signal)
+- [ ] Act 3 fully implemented (The Galactic Core Approaches biome, final boss The Signal)
 - [ ] All remaining station modules
 - [ ] At least 5 of 8 unlockable ships implemented
 - [ ] 60+ cards in card pool
 - [ ] 20+ modules in module pool
-- [ ] 20+ events implemented (including 2 narrative chains)
+- [ ] 20+ events implemented (including IMPERIAL COURIER, RENEGADE BROADCAST, 2 narrative chains)
+- [ ] The Quiet Frequency narrative chain (runs 1/3/5, leads to The Integrated)
+- [ ] The Survivor narrative chain (full arc)
 - [ ] Full audio implementation (Howler.js, all SFX, adaptive music)
 - [ ] Visual polish pass (particle effects, module fire animations, cascade animations)
 - [ ] Glitch card visual effects (corruption distortion)
@@ -219,3 +234,7 @@ A complete game loop. Station grows. Ships unlock. Cards pool expands. Send to 2
 | Scope creep on content (too many cards before core loop is fun) | High | Medium | Phase 1–2 content minimum; resist adding until loop works |
 | Audio asset production blocking launch | Medium | Low | Use free/licensed placeholder audio until Phase 5 |
 | Save corruption on browser localStorage | Low | High | Schema versioning; migration system for save format changes |
+| Drive Fuel feels too restrictive — free players hit the wall at a bad moment | Medium | High | 5 fuel is ~2–3 solid runs; tune in playtest; err generous |
+| Drive Fuel feels too generous — no incentive to purchase | Low | Medium | Track conversion rate; can tighten cap or add cosmetic bundle without changing cap |
+| Players resent the fuel system as "pay to play" | Medium | Medium | Clear messaging: buying removes cap only, all content free; no P2W |
+| Waypoint re-entry Faction Alert confuses new players | Low | Medium | Fresh start is always the default; waypoint is opt-in with clear UI tooltip |

@@ -4,8 +4,10 @@
 
 The game operates two distinct economic systems:
 
-1. **In-Run Economy** — Scrap and Components earned mid-mission, spent at shops and shipyards. Resets on death or mission return.
-2. **Meta Economy** — Scrap Metal, Data Cores, and Void Crystals carried back from successful missions (or partially on death). Used to upgrade the permanent station.
+1. **In-Run Economy** — Scrap and Components earned mid-mission, spent at shops and shipyards. Resets on death. Carried forward on safe return (with ship).
+2. **Meta Economy** — Scrap Metal, Data Cores, and Void Crystals carried back from successful missions. Used to upgrade the permanent station.
+
+**Ship state as a resource**: On safe return, your ship (deck + installed modules) survives intact. On death, the ship is lost. A well-built engine is valuable — risking it for deeper rewards is the core return decision, not a system mechanic.
 
 ---
 
@@ -62,7 +64,7 @@ Uncommon. Requires reaching Act 2+.
 |--------|--------|
 | Act 2 boss kill | 1 Data Core |
 | Act 3 boss kill | 2 Data Cores |
-| Select events ("Analyze the broadcast") | 1 Data Core |
+| Select events ("Analyze the transmission") | 1 Data Core |
 | Research Lab (station module) — passive generation | 1 per 3 missions |
 
 ### Currency: Void Crystals (meta)
@@ -96,7 +98,7 @@ Ships are unlocked by completing specific challenges (not just buying them):
 | The Drifter | Starting ship (always available) |
 | The Vanguard | Starting ship (always available) |
 | The Weaver | Starting ship (always available) |
-| The Bastion | Survive 3 missions without dying (return alive each time) |
+| The Bastion | 3 consecutive safe returns without dying |
 | The Phantom | Defeat the Act 2 boss for the first time |
 | The Foundry | Build 10 total Station modules |
 | The Remnant | Discover (encounter in any run) 20 unique rare cards |
@@ -114,7 +116,7 @@ Cards are divided by **tier of availability**:
 Same logic as cards: Core modules always available; Rare modules must be discovered first.
 
 ### Cosmetics
-Cosmetics are vanity rewards — different frame styles for ships, card back designs, Anchorage skins. Earned through:
+Cosmetics are vanity rewards — different frame styles for ships, card back designs, Stead skins. Earned through:
 - Ascension milestones
 - Achievement completions
 - Challenge run clears
@@ -151,3 +153,5 @@ At the end of a completed run, a score is calculated for the leaderboard and per
 **Void Crystals are rare enough to matter** — 1–2 per run if you push to Act 3. Endgame unlocks cost 3–8 Crystals. A new player won't unlock everything for many sessions.
 
 **Scarcity drives decisions** — you rarely have enough in-run Scrap to buy everything at a shop. Choosing between a key card and a card removal (or module upgrade) is the core shop tension.
+
+**Deeper is better, not just harder** — Act 2 and Act 3 rewards are substantially better than Act 1 grinding. Story content, narrative chains, and rare event pools all gate to later acts. A player who repeats Act 1 is leaving the interesting parts of the game unplayed — not just earning less, but seeing less.

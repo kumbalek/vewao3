@@ -2,18 +2,18 @@
 
 ## Overview
 
-The macro game is the roguelike layer: node-based mission maps launched from your permanent space station. Between missions, you upgrade the station and prepare for the next dive. The station persists forever. Ships and loot do not.
+The macro game is the roguelike layer: node-based mission maps launched from your permanent space station. Between missions, you upgrade the station and prepare for the next dive. The station persists forever. **On a safe return, your ship persists too — deck and modules intact.** Only death resets the ship.
 
 ---
 
 ## The Mission Loop
 
-1. **Plan at The Anchorage** — review station upgrades, select a ship, review deck/board from last run (fresh run if first or after death)
-2. **Launch** — enter the mission map (node-based star chart)
+1. **At The Stead** — review station upgrades; board your existing ship (or a fresh one if you died last run); choose waypoint re-entry or fresh start
+2. **Launch** — enter the mission map (node-based star chart), spending 1 Drive Fuel
 3. **Navigate** — choose your path through 3 acts of nodes
 4. **Combat, loot, events** — build your engine as you dive deeper
-5. **Decide when to return** — you can abort a mission at any non-combat node to keep your loot
-6. **Succeed or die** — complete Act 3 boss for full rewards, or die and lose everything except station progress
+5. **Decide when to return** — you can abort at any non-combat node to keep your loot *and* your ship
+6. **Succeed or die** — complete Act 3 boss for full rewards, or die and lose your ship (but not your station)
 
 ---
 
@@ -100,24 +100,51 @@ Unknown until you land on them. Can be very good or a trap.
 
 ## The Return Decision
 
-At any non-combat node, the player can choose **"Return to Anchorage"**:
+At any non-combat node, the player can choose **"Return to The Stead"**:
 - All Scrap and items collected this mission are kept
-- The mission progress resets (you'll start from Act 1 on next mission)
-- No death penalty — you keep everything
+- **The ship is preserved** — deck and board carry over to the next mission
+- A waypoint is saved at the last completed act boundary
 
-**If you die**: Mind-Save activates at the Anchorage. All loot from the mission is lost. Station progress is untouched.
+**If you die**: Mind-Save activates at The Stead. Your ship is **lost** — fresh ship on next run. All in-run loot is lost.
 
-**The tension**: Deeper acts have better loot. But the risk of dying (and losing everything) increases. When do you bank your gains?
-
-**Risk modifiers**:
-- Station upgrade: Mind-Save Pod tier affects how much loot survives on death (0% → 10% → 25%)
-- Some events offer "Dead Man's Cache" — stash loot to survive a death
+**The tension**: Deeper acts have better loot and more story. The risk is losing your ship — and the engine you've built across multiple dives. When do you bank your gains vs. press for more?
 
 ---
 
-## Space Station: The Anchorage
+## Waypoint System
 
-The Anchorage is your permanent base. It never resets. It grows with every successful mission.
+On safe dock, the game saves your last completed act boundary as a **waypoint**.
+
+On re-launch from The Stead, you choose:
+
+- **Fresh Start** — Begin at Act 1. Full map. No penalty. Your ship and deck are unchanged, but you start from the beginning.
+- **Continue from Waypoint** — Skip directly to where you left off. First 2 encounters in that region have **+20% enemy HP** ("Faction Alert" — they had time to prepare for your return).
+
+Mid-act retreating has a cost: if you bail before clearing an act boundary, your waypoint still points to the start of that act. You'll either restart fresh or face prepared enemies on return. Players who complete an act cleanly before docking avoid the Faction Alert entirely.
+
+---
+
+## Drive Fuel
+
+Each mission launch costs **1 Drive Fuel** — representing the ship's ability to make a long-range jump out to the Rim and back. Fuel regenerates over time and is stored server-side.
+
+| | Free Player | Full Game |
+|--|------------|-----------|
+| Max Fuel | 5 | Unlimited |
+| Regeneration | 1 per 2 hours | — |
+| Refill time | ~10 hours | — |
+
+**Full game purchase** removes the cap entirely. No fuel limits, no waiting. This is the only thing the purchase unlocks — it is not pay-to-win. Free players have full access to all content; they simply play fewer sessions per day.
+
+**Why this structure works as a depth incentive**: Free players get 5 launches per day. Spending all 5 on quick Act 1 clears is obviously worse than 2 well-executed deep runs. The system nudges players toward depth without mandating it. A player who genuinely wants to grind Act 1 can — they'll just have less fuel to spend.
+
+**Fuel is not lost on death.** Only the ship and loot are lost. Dying is already punishing enough.
+
+---
+
+## Space Station: The Stead
+
+The Stead is your permanent base. It never resets. It grows with every successful mission. The docking clamps on Bay 3 still rattle on hard docks — you've fixed them twice and they always come loose again.
 
 ### Core Rooms (always present, cannot be lost)
 
@@ -146,6 +173,8 @@ Built with **Scrap Metal** and **Data Cores** (meta currencies).
 | Engine Tuner | Start mission with 1 Bridge pre-installed | Bridge has a free upgrade | 110 Scrap + 2 Cores |
 | Armory | Start with 1 extra module slot | Module slot comes pre-fitted | 200 Scrap + 3 Cores |
 | Smuggler's Den | Access to a hidden shop mid-mission once per run | Shop has unique contraband items | 90 Scrap + 1 Core |
+| Diplomatic Contacts | Access to faction shop nodes (Act 1+); faction-specific discounts | Faction rep persists across docks; deeper discounts with allied faction | 100 Scrap + 2 Cores |
+| Deep Space Relay | Waypoint depth extended: return from mid-Act 2 possible | Faction Alert penalty on waypoint re-entry reduced to +10% HP | 130 Scrap + 2 Cores |
 
 ### Station Power Budget
 The Reactor Core limits how many station modules are *active* simultaneously. You can build more modules than you can power — you must choose which to activate before each mission. This creates meaningful pre-mission decisions.
